@@ -61,6 +61,13 @@ def calculate_pipe_gap(score):
 def calculate_pipe_spacing(score):
     return max(initial_pipe_spacing - (score * 5), min_pipe_spacing)
 
+def create_pipe(is_moving=False):
+    """Creates a pipe with a random height. If is_moving is True, it creates a moving pipe."""
+    pipe_height = random.randint(150, 400)
+    if is_moving:
+        # Adjust the height slightly for moving pipes
+        pipe_height += random.choice([-20, 0, 20])  # Randomly move up or down
+    return pipe_height
 
 def game():
     """Main game function"""
@@ -73,9 +80,11 @@ def game():
     pipe_spacing = initial_pipe_spacing
 
     for i in range(3):
+        # Randomly decide whether to create a moving pipe or a regular pipe
+        is_moving = random.choice([False, True])  # 50% chance for moving pipe
         pipe_x = WIDTH + i * pipe_spacing
-        pipe_height = random.randint(150, 400)
-        pipes.append([pipe_x, pipe_height])
+        pipe_height = create_pipe(is_moving)
+        pipes.append([pipe_x, pipe_height, is_moving])  # Store whether the pipe is moving
 
     bg_x = 0
     flap_frame = 0
@@ -125,18 +134,24 @@ def game():
         for pipe in pipes:
             pipe[0] -= pipe_speed
 
-            pipe_x, pipe_height = pipe
+            pipe_x, pipe_height, is_moving = pipe
             pipe_gap = calculate_pipe_gap(score)
 
+            # Draw the pipes
             SCREEN.blit(pipe_top, (pipe_x, pipe_height - pipe_top.get_height()))
             SCREEN.blit(pipe_bottom, (pipe_x, pipe_height + pipe_gap))
+
+            # If the pipe is moving, adjust its height slightly
+            if is_moving:
+                pipe[1] += random.choice([-1, 1])  # Move the pipe up or down slightly
+                pipe[1] = max(150, min(pipe[1], 400))  # Keep the pipe height within bounds
 
             # Check collision
             if bird_x + bird_radius > pipe_x and bird_x - bird_radius < pipe_x + pipe_width:
                 if bird_y - bird_radius < pipe_height or bird_y + bird_radius > pipe_height + pipe_gap:
                     running = False
 
-            # Remove pipes that go off-screen and add new ones
+        # Remove pipes that go off-screen and add new ones
         if pipes[0][0] + pipe_width < 0:
             pipes.pop(0)  # Remove old pipe
             score += 1  # Increase score
@@ -144,10 +159,10 @@ def game():
 
             # Add a new pipe at the right
             new_pipe_x = pipes[-1][0] + pipe_spacing
-            new_pipe_height = random.randint(150, 400)
-            pipes.append([new_pipe_x, new_pipe_height])
+            new_pipe_height = create_pipe()
+            pipes.append([new_pipe_x, new_pipe_height, random.choice([False, True])])
 
-            # Display score
+        # Display score
         draw_text(f"Score: {score}", 10)
         draw_text(f"Best score: {best_score}", 50)
 
@@ -158,8 +173,8 @@ def game():
     game_over_screen(score)
 
 def game_over_screen(score):
-    best_score = load_best_score()
     """Displays Game Over Screen and waits for user to restart"""
+    best_score = load_best_score()
     SCREEN.fill(WHITE)
     draw_text("Game over!", HEIGHT // 3)
     draw_text(f"Your score: {score}", HEIGHT // 2)
@@ -175,6 +190,28 @@ def game_over_screen(score):
                 return
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    game()
+                    waiting = False
 
-game()
+def start_menu():
+    """Displays the start menu and waits for user to start the game"""
+    SCREEN.fill(WHITE)
+    draw_text("Flappy Bird", HEIGHT // 3)
+    draw_text("Press SPACE to Start", HEIGHT // 2)
+    draw_text("Press ESC to Quit", HEIGHT // 1.5)
+    pygame.display.update()
+
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    waiting = False
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    return
+    game()
+
+start_menu()
